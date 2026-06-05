@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseCount - Hopeful Exercise Companion</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Lora', sans-serif;
+      background: linear-gradient(135deg, #fdf2f0 0%, #fef3c7 100%);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(253, 186, 116, 0.3);
+    }
+    .warm-gradient {
+      background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
+    }
+    .warm-gradient-text {
+      background: linear-gradient(135deg, #ea580c 0%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    @keyframes pulse-slow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.04); opacity: 0.95; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 3s infinite ease-in-out;
+    }
+
+    /* Fluid full screen on mobile bounds */
+    @media (max-width: 600px) {
+      body {
+        padding: 0 !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+      }
+      #app-container {
+        max-width: 100% !important;
+        width: 100% !important;
+        min-height: 100vh !important;
+        min-height: -webkit-fill-available !important;
+        border-radius: 0px !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: linear-gradient(135deg, #fdf2f0 0%, #fef3c7 100%) !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 overflow-x-hidden">
+
+  <div id="app-container" class="w-full max-w-md glass-card rounded-[32px] shadow-2xl p-6 flex flex-col justify-between relative overflow-hidden min-h-[640px]">
+    
+    <!-- Background subtle warm ambient glow -->
+    <div class="absolute -top-24 -left-24 w-48 h-48 bg-orange-300 rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-pulse-slow"></div>
+    <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-200 rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-pulse-slow" style="animation-delay: 1.5s;"></div>
+
+    <!-- App Header -->
+    <div class="relative z-10 flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl warm-gradient flex items-center justify-center text-white shadow-md">
+          <i class="fa-solid fa-heartpulse text-sm"></i>
+        </div>
+        <span class="font-extrabold text-lg tracking-tight warm-gradient-text">PulseCount</span>
+      </div>
+      <button id="tts-settings-btn" class="text-orange-600 hover:text-orange-800 transition-colors p-2 rounded-full hover:bg-orange-50" title="Voice Settings">
+        <i class="fa-solid fa-sliders text-lg"></i>
+      </button>
+    </div>
+
+    <!-- TTS Configuration Panel -->
+    <div id="tts-panel" class="hidden absolute top-16 left-6 right-6 glass-card p-4 rounded-2xl border border-orange-200 shadow-lg z-20 transition-all duration-300">
+      <div class="flex justify-between items-center mb-3">
+        <h4 class="font-bold text-orange-800 text-sm flex items-center gap-1">
+          <i class="fa-solid fa-cloud-arrow-up text-orange-600"></i> Voice Preference
+        </h4>
+        <button id="close-tts-panel" class="text-gray-400 hover:text-orange-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-orange-700 mb-1">Select Voice (Auto-Syncs to Profile)</label>
+          <select id="voice-select" class="w-full text-xs p-2 bg-white border border-orange-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-orange-700">Mute TTS</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="mute-voice" class="sr-only peer">
+            <div class="w-9 h-5 bg-orange-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="relative z-10 flex-1 flex flex-col justify-between my-2">
+      
+      <!-- SETUP MODE: Configure counts & repetitions -->
+      <div id="setup-panel" class="space-y-5 py-2 my-auto">
+        <div class="text-center mb-2">
+          <h2 class="text-3xl font-extrabold text-stone-800">Set Your Exercise</h2>
+        </div>
+
+        <!-- Counts Setting -->
+        <div class="bg-white/70 p-4 rounded-2xl border border-orange-100 shadow-sm space-y-4">
+          <div>
+            <div class="flex justify-between items-center mb-3">
+              <span class="font-bold text-stone-700 text-sm">Counts</span>
+              <span id="hold-display" class="text-2xl font-black warm-gradient-text">10</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <button data-adjust="hold" data-dir="-1" class="w-11 h-11 rounded-full bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold transition-all border border-orange-200">-</button>
+              <input type="range" id="hold-range" min="1" max="30" value="10" class="flex-1 accent-orange-600">
+              <button data-adjust="hold" data-dir="1" class="w-11 h-11 rounded-full bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold transition-all border border-orange-200">+</button>
+            </div>
+          </div>
+          
+          <div class="pt-3 border-t border-orange-100/50">
+            <div class="grid grid-cols-3 gap-1 bg-stone-100 p-1 rounded-xl">
+              <button id="btn-count-slow" data-count-speed="slow" class="py-2 text-xs font-semibold rounded-lg transition-all">Slow</button>
+              <button id="btn-count-medium" data-count-speed="medium" class="py-2 text-xs font-semibold rounded-lg transition-all">Medium</button>
+              <button id="btn-count-fast" data-count-speed="fast" class="py-2 text-xs font-semibold rounded-lg transition-all">Fast</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Repetitions Setting -->
+        <div class="bg-white/70 p-4 rounded-2xl border border-orange-100 shadow-sm space-y-4">
+          <div>
+            <div class="flex justify-between items-center mb-3">
+              <span class="font-bold text-stone-700 text-sm">Repetitions</span>
+              <span id="reps-display" class="text-2xl font-black warm-gradient-text">10</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <button data-adjust="reps" data-dir="-1" class="w-11 h-11 rounded-full bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold transition-all border border-orange-200">-</button>
+              <input type="range" id="reps-range" min="1" max="30" value="10" class="flex-1 accent-orange-600">
+              <button data-adjust="reps" data-dir="1" class="w-11 h-11 rounded-full bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold transition-all border border-orange-200">+</button>
+            </div>
+          </div>
+          
+          <div class="pt-3 border-t border-orange-100/50">
+            <div class="grid grid-cols-3 gap-1 bg-stone-100 p-1 rounded-xl">
+              <button id="btn-rep-slow" data-rep-speed="slow" class="py-2 text-xs font-semibold rounded-lg transition-all">Slow</button>
+              <button id="btn-rep-medium" data-rep-speed="medium" class="py-2 text-xs font-semibold rounded-lg transition-all">Medium</button>
+              <button id="btn-rep-fast" data-rep-speed="fast" class="py-2 text-xs font-semibold rounded-lg transition-all">Fast</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ACTIVE WORKOUT MODE: Music Player Screen -->
+      <div id="player-panel" class="hidden flex-1 flex flex-col justify-center py-2">
+
+        <!-- Progress Ring Circle -->
+        <div class="flex flex-col items-center justify-center my-4 relative">
+          <div class="w-60 h-60 rounded-full bg-orange-50 border-4 border-orange-100 shadow-inner flex flex-col items-center justify-center relative">
+            
+            <svg class="absolute top-0 left-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" stroke="rgba(253, 186, 116, 0.2)" stroke-width="4" fill="transparent"/>
+              <circle id="progress-circle" cx="50" cy="50" r="46" stroke="#f97316" stroke-width="4" fill="transparent"
+                stroke-dasharray="289" stroke-dashoffset="289" stroke-linecap="round" class="transition-all duration-300"/>
+            </svg>
+
+            <span id="player-state-label" class="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">PREPARE</span>
+            <span id="player-main-counter" class="text-6xl font-extrabold warm-gradient-text tracking-tight">Prepare</span>
+          </div>
+        </div>
+
+        <!-- Combined Rep / Goal visual layout -->
+        <div class="px-4 mt-4">
+          <div class="text-center text-sm text-stone-600 font-bold mb-2">
+            <span id="progress-single-label">Repetition 1 of 10</span>
+          </div>
+          <div class="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
+            <div id="overall-progress-bar" class="h-full warm-gradient w-0 transition-all duration-300"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom Action Controls Interface -->
+    <div class="relative z-10 border-t border-orange-100/60 pt-4 mt-auto">
+      
+      <!-- Primary Setup Play button -->
+      <div id="setup-controls" class="flex justify-center">
+        <button id="start-workout-btn" class="w-full py-4 rounded-2xl warm-gradient text-white font-bold text-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> Start Exercise
+        </button>
+      </div>
+
+      <!-- Workout Active Panel Controls -->
+      <div id="player-controls" class="hidden flex-col gap-4">
+        <div class="flex items-center justify-center gap-8 px-6">
+          
+          <button id="prev-rep-btn" class="w-14 h-14 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center text-xl transition-all active:scale-95" title="Previous Repetition">
+            <i class="fa-solid fa-backward-step"></i>
+          </button>
+
+          <button id="play-pause-btn" class="w-20 h-20 rounded-full warm-gradient text-white flex items-center justify-center text-3xl shadow-lg hover:scale-105 active:scale-95 transition-all" title="Play or Pause">
+            <i id="play-pause-icon" class="fa-solid fa-play ml-1"></i>
+          </button>
+
+          <button id="next-rep-btn" class="w-14 h-14 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 flex items-center justify-center text-xl transition-all active:scale-95" title="Next Repetition">
+            <i class="fa-solid fa-forward-step"></i>
+          </button>
+
+        </div>
+
+        <div class="pt-2">
+          <button id="end-workout-btn" class="w-full py-3 rounded-xl bg-red-50 text-red-600 border border-red-200 font-bold hover:bg-red-100 hover:text-red-700 transition-all flex items-center justify-center gap-2" title="Stop Exercise">
+            <i class="fa-solid fa-circle-stop"></i> Stop Exercise
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Firebase & App State Logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Application state
+    const state = {
+      holdTarget: 10,
+      totalReps: 10,
+      currentRep: 1,
+      currentHoldCount: 0,
+      status: 'SETUP', // SETUP, GET_READY, HOLD_COUNTING, RESTING, PAUSED, COMPLETED
+      prevStatusBeforePause: 'GET_READY', 
+      isMuted: false,
+      selectedVoice: null,
+      savedVoiceName: null,
+      savedVoiceLang: null,
+      countSpeed: 'medium',
+      repSpeed: 'medium'
+    };
+
+    // State intervals and configurations
+    const getCountInterval = () => {
+      if (state.countSpeed === 'slow') return 1500;
+      if (state.countSpeed === 'fast') return 650;
+      return 1000;
+    };
+
+    const getSpeechRate = () => {
+      if (state.countSpeed === 'slow') return 0.8;
+      if (state.countSpeed === 'fast') return 1.35;
+      return 1.05;
+    };
+
+    const getPrepareTime = () => {
+      if (state.repSpeed === 'slow') return 4;
+      if (state.repSpeed === 'fast') return 1;
+      return 2;
+    };
+
+    const getRestTime = () => {
+      if (state.repSpeed === 'slow') return 4;
+      if (state.repSpeed === 'fast') return 1;
+      return 2;
+    };
+
+    // DOM References
+    let setupPanel, playerPanel, setupControls, playerControls;
+    let startWorkoutBtn, playPauseBtn, playPauseIcon, nextRepBtn, prevRepBtn, endWorkoutBtn;
+    let holdRange, holdDisplay, repsRange, repsDisplay;
+    let playerStateLabel, playerMainCounter, progressCircle, progressSingleLabel, overallProgressBar;
+    let ttsSettingsBtn, ttsPanel, closeTtsPanel, voiceSelect, muteVoiceCheckbox;
+
+    // Firebase state declarations
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+
+    // Speech synthesis APIs
+    const synth = window.speechSynthesis;
+    let voices = [];
+
+    // Helper functions
+    function updateSpeedPillsUI() {
+      ['slow', 'medium', 'fast'].forEach(speed => {
+        const cBtn = document.getElementById(`btn-count-${speed}`);
+        const rBtn = document.getElementById(`btn-rep-${speed}`);
+        
+        const activeClass = "py-2 text-xs font-bold rounded-lg transition-all warm-gradient text-white shadow-sm";
+        const inactiveClass = "py-2 text-xs font-semibold rounded-lg transition-all text-stone-600 hover:text-stone-800";
+
+        if (cBtn) {
+          cBtn.className = (state.countSpeed === speed) ? activeClass : inactiveClass;
+        }
+        if (rBtn) {
+          rBtn.className = (state.repSpeed === speed) ? activeClass : inactiveClass;
+        }
+      });
+    }
+
+    function populateVoiceList() {
+      if (!synth || !voiceSelect) return;
+      voices = synth.getVoices();
+      voiceSelect.innerHTML = '';
+      
+      const defaultOption = document.createElement('option');
+      defaultOption.textContent = 'System Default Voice';
+      defaultOption.value = '';
+      voiceSelect.appendChild(defaultOption);
+
+      let preferredVoice = null;
+      if (state.savedVoiceName) {
+        preferredVoice = voices.find(v => v.name === state.savedVoiceName && v.lang === state.savedVoiceLang);
+      }
+
+      if (!preferredVoice) {
+        preferredVoice = voices.find(v => v.lang.startsWith('en') && !v.localService) ||
+                         voices.find(v => !v.localService) ||
+                         voices.find(v => v.lang.startsWith('en')) ||
+                         voices.find(v => v.default) ||
+                         voices[0];
+      }
+
+      if (preferredVoice) {
+        state.selectedVoice = preferredVoice;
+      }
+
+      voices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        const premiumBadge = !voice.localService ? ' (Premium)' : '';
+        option.textContent = `${voice.name} (${voice.lang})${premiumBadge}`;
+        option.value = index;
+        if (voice === state.selectedVoice) {
+          option.selected = true;
+        }
+        voiceSelect.appendChild(option);
+      });
+    }
+
+    function selectSavedCloudVoice() {
+      if (!voices.length || !state.savedVoiceName) return;
+      const matched = voices.find(v => v.name === state.savedVoiceName && v.lang === state.savedVoiceLang);
+      if (matched) {
+        state.selectedVoice = matched;
+        populateVoiceList();
+      }
+    }
+
+    function speakText(text) {
+      if (state.isMuted || !synth) return;
+      synth.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (state.selectedVoice) {
+        utterance.voice = state.selectedVoice;
+      }
+      utterance.rate = getSpeechRate();
+      synth.speak(utterance);
+    }
+
+    function showPlayer(visible) {
+      if (visible) {
+        setupPanel.classList.add('hidden');
+        setupControls.classList.add('hidden');
+        playerPanel.classList.remove('hidden');
+        playerControls.classList.remove('hidden');
+      } else {
+        setupPanel.classList.remove('hidden');
+        setupControls.classList.remove('hidden');
+        playerPanel.classList.add('hidden');
+        playerControls.classList.add('hidden');
+      }
+    }
+
+    function updateCircleProgress(current, target) {
+      if (!progressCircle) return;
+      const maxStroke = 289;
+      const percentage = Math.min(100, Math.max(0, (current / target) * 100));
+      const offset = maxStroke - (percentage * maxStroke) / 100;
+      progressCircle.style.strokeDashoffset = offset;
+    }
+
+    function updateOverallProgressBar() {
+      if (!overallProgressBar || !progressSingleLabel) return;
+      
+      const totalReps = state.totalReps;
+      const currentRep = state.currentRep;
+      
+      progressSingleLabel.textContent = `Repetition ${currentRep} of ${totalReps}`;
+      
+      let overallPercent = 0;
+      if (state.status === 'COMPLETED') {
+        overallPercent = 100;
+      } else {
+        overallPercent = Math.min(100, Math.round((currentRep / totalReps) * 100));
+      }
+      overallProgressBar.style.width = `${overallPercent}%`;
+    }
+
+    let exerciseInterval = null;
+    let timerTickSecs = 0;
+
+    function startRepetitionSequence() {
+      timerTickSecs = 0;
+      state.currentHoldCount = 0;
+      transitionToState('GET_READY');
+    }
+
+    function transitionToState(newState) {
+      state.status = newState;
+      clearInterval(exerciseInterval);
+
+      if (newState === 'GET_READY') {
+        playerStateLabel.textContent = `PREPARE FOR ${state.currentRep}`;
+        playerMainCounter.textContent = "Prepare";
+        playerMainCounter.classList.replace('text-6xl', 'text-4xl');
+        
+        speakText(`Prepare for ${state.currentRep}`);
+        
+        timerTickSecs = getPrepareTime();
+        updateCircleProgress(0, 1);
+        
+        exerciseInterval = setInterval(() => {
+          timerTickSecs--;
+          if (timerTickSecs <= 0) {
+            transitionToState('HOLD_COUNTING');
+          }
+        }, 1000);
+
+      } else if (newState === 'HOLD_COUNTING') {
+        playerMainCounter.classList.replace('text-4xl', 'text-6xl');
+        playerStateLabel.textContent = "COUNTING";
+        
+        state.currentHoldCount = 1;
+        playerMainCounter.textContent = state.currentHoldCount;
+        speakText("1");
+        updateCircleProgress(state.currentHoldCount, state.holdTarget);
+
+        exerciseInterval = setInterval(() => {
+          state.currentHoldCount++;
+          if (state.currentHoldCount <= state.holdTarget) {
+            playerMainCounter.textContent = state.currentHoldCount;
+            speakText(state.currentHoldCount.toString());
+            updateCircleProgress(state.currentHoldCount, state.holdTarget);
+          } else {
+            if (state.currentRep < state.totalReps) {
+              transitionToState('RESTING');
+            } else {
+              transitionToState('COMPLETED');
+            }
+          }
+          updateOverallProgressBar();
+        }, getCountInterval());
+
+      } else if (newState === 'RESTING') {
+        playerStateLabel.textContent = "RELAX";
+        playerMainCounter.textContent = "Relax";
+        playerMainCounter.classList.replace('text-6xl', 'text-4xl');
+        
+        speakText("Relax");
+        
+        timerTickSecs = getRestTime();
+        updateCircleProgress(1, 1);
+
+        exerciseInterval = setInterval(() => {
+          timerTickSecs--;
+          if (timerTickSecs <= 0) {
+            state.currentRep++;
+            startRepetitionSequence();
+          }
+        }, 1000);
+
+      } else if (newState === 'COMPLETED') {
+        playerMainCounter.classList.replace('text-4xl', 'text-6xl');
+        playerStateLabel.textContent = "COMPLETE";
+        playerMainCounter.textContent = "🎉";
+        speakText("Exercise complete. Good job!");
+        
+        updateCircleProgress(1, 1);
+        updateOverallProgressBar();
+        pauseGameUI();
+      }
+
+      updateOverallProgressBar();
+    }
+
+    function togglePlayPause() {
+      if (state.status === 'PAUSED') {
+        playPauseIcon.className = "fa-solid fa-pause";
+        transitionToState(state.prevStatusBeforePause);
+      } else if (state.status !== 'COMPLETED') {
+        state.prevStatusBeforePause = state.status;
+        state.status = 'PAUSED';
+        clearInterval(exerciseInterval);
+        if (synth) synth.cancel();
+        
+        playPauseIcon.className = "fa-solid fa-play ml-1";
+        playerStateLabel.textContent = "PAUSED";
+      } else {
+        state.currentRep = 1;
+        startRepetitionSequence();
+        playPauseIcon.className = "fa-solid fa-pause";
+      }
+    }
+
+    function pauseGameUI() {
+      playPauseIcon.className = "fa-solid fa-play ml-1";
+    }
+
+    // Cloud operations
+    async function saveVoiceSelectionToCloud(voiceName, voiceLang) {
+      if (!currentUser || !db) return;
+      try {
+        const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'settings', 'voice');
+        await setDoc(docRef, { voiceName, voiceLang }, { merge: true });
+        console.log("Voice preference saved securely.");
+      } catch (err) {
+        console.error("Cloud storage save error:", err);
+      }
+    }
+
+    async function loadSavedVoiceFromCloud() {
+      if (!currentUser || !db) return;
+      try {
+        const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'settings', 'voice');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          state.savedVoiceName = data.voiceName;
+          state.savedVoiceLang = data.voiceLang;
+          selectSavedCloudVoice();
+        }
+      } catch (err) {
+        console.error("Cloud storage load error:", err);
+      }
+    }
+
+    async function initFirebase() {
+      if (!firebaseConfig) return;
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        if (initialAuthToken) {
+          await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+          await signInAnonymously(auth);
+        }
+        currentUser = auth.currentUser;
+        
+        await loadSavedVoiceFromCloud();
+      } catch (err) {
+        console.error("Firebase initializing failed:", err);
+      }
+    }
+
+    function initApp() {
+      setupPanel = document.getElementById('setup-panel');
+      playerPanel = document.getElementById('player-panel');
+      setupControls = document.getElementById('setup-controls');
+      playerControls = document.getElementById('player-controls');
+      
+      startWorkoutBtn = document.getElementById('start-workout-btn');
+      playPauseBtn = document.getElementById('play-pause-btn');
+      playPauseIcon = document.getElementById('play-pause-icon');
+      nextRepBtn = document.getElementById('next-rep-btn');
+      prevRepBtn = document.getElementById('prev-rep-btn');
+      endWorkoutBtn = document.getElementById('end-workout-btn');
+      
+      holdRange = document.getElementById('hold-range');
+      holdDisplay = document.getElementById('hold-display');
+      repsRange = document.getElementById('reps-range');
+      repsDisplay = document.getElementById('reps-display');
+
+      playerStateLabel = document.getElementById('player-state-label');
+      playerMainCounter = document.getElementById('player-main-counter');
+      progressCircle = document.getElementById('progress-circle');
+      progressSingleLabel = document.getElementById('progress-single-label');
+      overallProgressBar = document.getElementById('overall-progress-bar');
+
+      ttsSettingsBtn = document.getElementById('tts-settings-btn');
+      ttsPanel = document.getElementById('tts-panel');
+      closeTtsPanel = document.getElementById('close-tts-panel');
+      voiceSelect = document.getElementById('voice-select');
+      muteVoiceCheckbox = document.getElementById('mute-voice');
+
+      // Sync custom values and state
+      updateSpeedPillsUI();
+
+      // Sliders event listener
+      holdRange.addEventListener('input', (e) => {
+        state.holdTarget = parseInt(e.target.value);
+        holdDisplay.textContent = state.holdTarget;
+      });
+
+      repsRange.addEventListener('input', (e) => {
+        state.totalReps = parseInt(e.target.value);
+        repsDisplay.textContent = state.totalReps;
+      });
+
+      // Unified action handlers (removes onclick dependencies)
+      document.addEventListener('click', (e) => {
+        // Increment/Decrement actions
+        const adjustElement = e.target.closest('[data-adjust]');
+        if (adjustElement) {
+          const type = adjustElement.getAttribute('data-adjust');
+          const direction = parseInt(adjustElement.getAttribute('data-dir'));
+          if (type === 'hold') {
+            let val = parseInt(holdRange.value) + direction;
+            val = Math.max(holdRange.min, Math.min(holdRange.max, val));
+            holdRange.value = val;
+            holdDisplay.textContent = val;
+            state.holdTarget = val;
+          } else if (type === 'reps') {
+            let val = parseInt(repsRange.value) + direction;
+            val = Math.max(repsRange.min, Math.min(repsRange.max, val));
+            repsRange.value = val;
+            repsDisplay.textContent = val;
+            state.totalReps = val;
+          }
+        }
+
+        // Count speed adjustments
+        const countSpeedElement = e.target.closest('[data-count-speed]');
+        if (countSpeedElement) {
+          state.countSpeed = countSpeedElement.getAttribute('data-count-speed');
+          updateSpeedPillsUI();
+          speakText(`Count speed set to ${state.countSpeed}`);
+        }
+
+        // Repetition speed adjustments
+        const repSpeedElement = e.target.closest('[data-rep-speed]');
+        if (repSpeedElement) {
+          state.repSpeed = repSpeedElement.getAttribute('data-rep-speed');
+          updateSpeedPillsUI();
+          speakText(`Transition speed set to ${state.repSpeed}`);
+        }
+      });
+
+      muteVoiceCheckbox.addEventListener('change', (e) => {
+        state.isMuted = e.target.checked;
+      });
+
+      ttsSettingsBtn.addEventListener('click', () => {
+        ttsPanel.classList.toggle('hidden');
+      });
+
+      closeTtsPanel.addEventListener('click', () => {
+        ttsPanel.classList.add('hidden');
+      });
+
+      startWorkoutBtn.addEventListener('click', () => {
+        state.currentRep = 1;
+        showPlayer(true);
+        playPauseIcon.className = "fa-solid fa-pause";
+        startRepetitionSequence();
+      });
+
+      playPauseBtn.addEventListener('click', togglePlayPause);
+
+      endWorkoutBtn.addEventListener('click', () => {
+        clearInterval(exerciseInterval);
+        if (synth) synth.cancel();
+        state.status = 'SETUP';
+        showPlayer(false);
+      });
+
+      nextRepBtn.addEventListener('click', () => {
+        if (state.currentRep < state.totalReps) {
+          state.currentRep++;
+          startRepetitionSequence();
+          playPauseIcon.className = "fa-solid fa-pause";
+        } else {
+          transitionToState('COMPLETED');
+        }
+      });
+
+      prevRepBtn.addEventListener('click', () => {
+        if (state.currentRep > 1) {
+          state.currentRep--;
+        }
+        startRepetitionSequence();
+        playPauseIcon.className = "fa-solid fa-pause";
+      });
+
+      if (voiceSelect) {
+        voiceSelect.addEventListener('change', async (e) => {
+          const val = e.target.value;
+          if (val !== '') {
+            const chosen = voices[val];
+            state.selectedVoice = chosen;
+            await saveVoiceSelectionToCloud(chosen.name, chosen.lang);
+            speakText("Voice synchronized.");
+          } else {
+            state.selectedVoice = null;
+            await saveVoiceSelectionToCloud('', '');
+            speakText("Default voice restored.");
+          }
+        });
+      }
+
+      if (synth) {
+        populateVoiceList();
+        if (synth.onvoiceschanged !== undefined) {
+          synth.onvoiceschanged = () => {
+            populateVoiceList();
+            selectSavedCloudVoice();
+          };
+        }
+      }
+
+      initFirebase();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+  </script>
+</body>
+</html>
